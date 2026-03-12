@@ -18,7 +18,7 @@ export default async function handler(req, res) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'glm-4v-flash',
+        model: 'glm-4v',
         max_tokens: 4096,
         messages: [{
           role: 'user',
