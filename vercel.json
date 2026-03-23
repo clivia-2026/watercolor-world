@@ -1,7 +1,0 @@
-{
-  "functions": {
-    "api/generate-figure.js": {
-      "maxDuration": 45
-    }
-  }
-}
