@@ -1,0 +1,1293 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Watercolor World</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Crimson+Text:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --cream:      #faf7f2;
+  --parchment:  #f5f0e8;
+  --ink:        #2d2118;
+  --ink-soft:   #4a3728;
+  --brown:      #8b6f5e;
+  --brown-lt:   #b8957a;
+  --terra:      #c4795a;
+  --sage:       #8fa88a;
+  --dusty-blue: #7a9bb0;
+  --gold:       #c9a05a;
+}
+
+body {
+  font-family: 'Crimson Text', Georgia, serif;
+  background: var(--cream);
+  height: 100vh; width: 100vw;
+  overflow: hidden;
+  cursor: default;
+}
+
+/* ═══════════════ LOADING ═══════════════ */
+#screen-loading {
+  position: fixed; inset: 0; z-index: 900;
+  background: radial-gradient(ellipse at 40% 50%, #daeef6 0%, #c5e0ee 45%, #a8cfe0 100%);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 28px;
+  transition: opacity 1.4s ease, transform 1.4s ease;
+}
+#screen-loading.out { opacity: 0; transform: scale(1.06); pointer-events: none; }
+
+.earth-wrap {
+  width: 200px; height: 200px; position: relative;
+}
+.earth-glow {
+  position: absolute; inset: -30px; border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(100,180,220,0.18) 0%, transparent 70%);
+  animation: glow 3.2s ease-in-out infinite;
+}
+@keyframes glow { 0%,100%{opacity:.5;transform:scale(1)} 50%{opacity:1;transform:scale(1.08)} }
+
+.earth-svg {
+  width: 200px; height: 200px;
+  animation: spin 14s linear infinite;
+  filter: drop-shadow(0 10px 36px rgba(80,150,190,0.35));
+}
+@keyframes spin { from{transform:rotateY(0deg)} to{transform:rotateY(360deg)} }
+
+.load-label {
+  font-family: 'Playfair Display', serif;
+  font-style: italic; font-size: 17px;
+  color: var(--dusty-blue); letter-spacing: 3px;
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100%{opacity:.45} 50%{opacity:1} }
+
+.load-dots { display:flex; gap:7px; }
+.load-dots span {
+  width:5px; height:5px; border-radius:50%;
+  background: var(--dusty-blue); opacity:.4;
+  animation: dot 1.3s ease-in-out infinite;
+}
+.load-dots span:nth-child(2){animation-delay:.18s}
+.load-dots span:nth-child(3){animation-delay:.36s}
+@keyframes dot { 0%,80%,100%{transform:scale(.7);opacity:.3} 40%{transform:scale(1.3);opacity:.85} }
+
+/* ═══════════════ WORLD ═══════════════ */
+#screen-world {
+  position: fixed; inset: 0;
+  opacity: 0; pointer-events: none;
+  transition: opacity 1.6s ease;
+}
+#screen-world.visible { opacity: 1; pointer-events: all; }
+
+.world-bg {
+  position: absolute; inset: 0;
+  background: #fdfaf5;
+}
+/* Paper grain overlay */
+.world-bg::after {
+  content:''; position:absolute; inset:0; pointer-events:none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='g'%3E%3CfeTurbulence baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)' opacity='0.028'/%3E%3C/svg%3E");
+  opacity: .6;
+}
+
+/* Corner washes */
+.wash {
+  position: absolute; pointer-events: none;
+  border-radius: 50%; opacity: .055;
+  filter: blur(2px);
+}
+.wash-tl { top:-120px; left:-120px; width:380px; height:380px; background:var(--sage); }
+.wash-br { bottom:-100px; right:-100px; width:320px; height:320px; background:var(--terra); }
+.wash-tr { top:-80px; right:80px; width:200px; height:200px; background:var(--gold); opacity:.04; }
+
+/* Horizon line */
+.horizon {
+  position: absolute; bottom: 22%; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(45,33,24,.06) 20%, rgba(45,33,24,.08) 50%, rgba(45,33,24,.06) 80%, transparent 100%);
+}
+
+/* Welcome */
+.welcome {
+  position: absolute; top: 44px; left: 50%; transform: translateX(-50%);
+  text-align: center; z-index: 10; white-space: nowrap;
+}
+.welcome h1 {
+  font-family: 'Playfair Display', serif; font-style: italic; font-weight: 400;
+  font-size: clamp(22px, 3.2vw, 32px);
+  color: var(--ink); opacity: .72; letter-spacing: 1.5px;
+}
+.welcome p {
+  font-size: 12px; color: var(--brown);
+  letter-spacing: 4px; text-transform: uppercase;
+  margin-top: 5px; opacity: .45;
+}
+
+/* Canvas */
+#canvas { position: absolute; inset: 0; }
+
+/* ═══════════════ FIGURES ═══════════════ */
+.fig-wrap {
+  position: absolute;
+  cursor: pointer;
+  transform-origin: bottom center;
+  transition: filter .3s;
+}
+.fig-wrap:hover { filter: drop-shadow(0 6px 16px rgba(139,111,94,.32)); }
+.fig-wrap:hover .fig-label { opacity:.9; transform:translateX(-50%) translateY(-3px); }
+
+.fig-shadow {
+  position: absolute; bottom: -6px; left: 50%;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: rgba(45,33,24,.12);
+  filter: blur(4px);
+}
+
+.fig-svg { display: block; width: 120px; }
+.fig-svg img {
+  display: block;
+  width: 120px;
+  height: 188px;
+  object-fit: contain;
+  object-position: center bottom;
+}
+
+.fig-label {
+  position: absolute; bottom: -28px; left: 50%;
+  transform: translateX(-50%);
+  font-family: 'Playfair Display', serif; font-style: italic;
+  font-size: 14px; color: var(--brown);
+  white-space: nowrap; opacity: .55;
+  transition: all .35s ease;
+  pointer-events: none; letter-spacing:.5px;
+}
+
+.fig-dot {
+  position: absolute; bottom: -37px; left: 50%;
+  transform: translateX(-50%);
+  width: 5px; height: 5px; border-radius: 50%; opacity: .45;
+}
+
+/* Float animation (wrapper level) */
+@keyframes float-a {
+  0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)}
+}
+@keyframes float-b {
+  0%,100%{transform:translateY(-3px)} 50%{transform:translateY(3px)}
+}
+@keyframes drift {
+  0%,100%{transform:translateX(0) translateY(0)}
+  33%{transform:translateX(4px) translateY(-3px)}
+  66%{transform:translateX(-3px) translateY(2px)}
+}
+
+/* Wiggle on click */
+@keyframes wiggle {
+  0%{transform:rotate(0deg) scale(1)}
+  15%{transform:rotate(-8deg) scale(1.08)}
+  30%{transform:rotate(7deg) scale(1.06)}
+  45%{transform:rotate(-5deg) scale(1.04)}
+  60%{transform:rotate(4deg) scale(1.02)}
+  75%{transform:rotate(-2deg) scale(1.01)}
+  100%{transform:rotate(0deg) scale(1)}
+}
+.fig-wrap.wiggling { animation: wiggle .6s ease forwards !important; }
+
+/* Add button */
+#add-btn {
+  position: fixed; bottom: 36px; right: 36px;
+  width: 54px; height: 54px; border-radius: 50%;
+  border: 1.8px solid rgba(139,111,94,.38);
+  background: rgba(253,250,245,.92);
+  backdrop-filter: blur(10px);
+  cursor: pointer; z-index: 80;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .28s ease;
+  box-shadow: 0 4px 20px rgba(139,111,94,.13);
+}
+#add-btn:hover { border-color:rgba(139,111,94,.7); transform:scale(1.1); box-shadow:0 6px 26px rgba(139,111,94,.24); }
+
+/* ═══════════════ MODAL BASE ═══════════════ */
+.overlay {
+  position: fixed; inset: 0;
+  background: rgba(45,33,24,.22);
+  backdrop-filter: blur(7px);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 300; opacity: 0; pointer-events: none;
+  transition: opacity .3s ease;
+}
+.overlay.show { opacity: 1; pointer-events: all; }
+
+.modal {
+  background: #fdfaf5;
+  border-radius: 22px;
+  padding: 38px 40px 34px;
+  width: 440px; max-width: 92vw;
+  max-height: 88vh; overflow-y: auto;
+  box-shadow: 0 24px 64px rgba(45,33,24,.16);
+  border: 1px solid rgba(139,111,94,.1);
+  transform: translateY(24px);
+  transition: transform .35s ease;
+}
+.overlay.show .modal { transform: translateY(0); }
+
+.modal h2 {
+  font-family: 'Playfair Display', serif;
+  font-style: italic; font-weight: 400;
+  font-size: 24px; color: var(--ink);
+  margin-bottom: 28px;
+}
+
+/* Form elements */
+.field { margin-bottom: 22px; }
+.field label {
+  display: block; font-size: 11px;
+  letter-spacing: 2.5px; text-transform: uppercase;
+  color: var(--brown); margin-bottom: 8px; opacity: .85;
+}
+.field input[type=text] {
+  width: 100%; padding: 11px 15px;
+  border: 1.5px solid rgba(139,111,94,.2); border-radius: 11px;
+  background: rgba(255,255,255,.55);
+  font-family: 'Crimson Text', serif; font-size: 17px;
+  color: var(--ink); outline: none;
+  transition: border-color .2s;
+}
+.field input[type=text]:focus { border-color: rgba(139,111,94,.5); }
+.field input[type=text].err { border-color: rgba(196,121,90,.6); }
+
+/* Relation pills */
+.pills { display: flex; gap: 9px; }
+.pill {
+  flex: 1; padding: 9px 10px;
+  border: 1.5px solid rgba(139,111,94,.22); border-radius: 11px;
+  text-align: center; cursor: pointer;
+  font-family: 'Crimson Text', serif; font-size: 15px;
+  color: var(--brown); background: transparent;
+  transition: all .2s;
+}
+.pill.active {
+  border-color: var(--brown);
+  background: rgba(139,111,94,.09);
+  color: var(--ink);
+}
+
+/* Upload area */
+.upload-zone {
+  border: 2px dashed rgba(139,111,94,.28); border-radius: 14px;
+  padding: 30px 20px; text-align: center;
+  cursor: pointer; position: relative; overflow: hidden;
+  transition: all .22s;
+}
+.upload-zone:hover { border-color: rgba(139,111,94,.55); background: rgba(139,111,94,.03); }
+.upload-zone input { position:absolute; inset:0; opacity:0; cursor:pointer; }
+.upload-zone img.preview {
+  width: 86px; height: 86px; border-radius: 50%;
+  object-fit: cover; margin: 0 auto 10px; display: none;
+  border: 2px solid rgba(139,111,94,.2);
+}
+.upload-zone .hint {
+  font-size: 13px; color: var(--brown); opacity: .58; line-height: 1.6;
+}
+
+/* Buttons */
+.row-btns { display: flex; gap: 11px; margin-top: 28px; }
+.btn-main {
+  flex: 1; padding: 13px;
+  border-radius: 12px; border: none;
+  background: var(--brown); color: white;
+  font-family: 'Crimson Text', serif; font-size: 17px;
+  cursor: pointer; transition: all .22s; letter-spacing:.3px;
+}
+.btn-main:hover { background: var(--ink-soft); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(139,111,94,.28); }
+.btn-main:disabled { opacity:.5; cursor:not-allowed; transform:none; }
+.btn-ghost {
+  padding: 13px 20px; border-radius: 12px;
+  border: 1.5px solid rgba(139,111,94,.25); background: transparent;
+  color: var(--brown); font-family: 'Crimson Text', serif; font-size: 17px;
+  cursor: pointer; transition: all .2s;
+}
+.btn-ghost:hover { border-color: rgba(139,111,94,.5); }
+
+/* ═══════════════ GENERATING SCREEN ═══════════════ */
+#screen-gen {
+  position: fixed; inset: 0; z-index: 400;
+  background: rgba(253,250,245,.96);
+  backdrop-filter: blur(12px);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 28px; opacity: 0; pointer-events: none;
+  transition: opacity .4s ease;
+}
+#screen-gen.show { opacity: 1; pointer-events: all; }
+
+.brush-anim {
+  width: 80px; height: 80px; position: relative;
+}
+.brush-circle {
+  width: 80px; height: 80px; border-radius: 50%;
+  border: 2px solid transparent;
+  border-top-color: var(--terra);
+  border-right-color: var(--gold);
+  animation: spin2 1.2s linear infinite;
+}
+@keyframes spin2 { to{transform:rotate(360deg)} }
+
+.brush-inner {
+  position: absolute; inset: 12px; border-radius: 50%;
+  border: 1.5px solid transparent;
+  border-top-color: var(--sage);
+  border-left-color: var(--dusty-blue);
+  animation: spin2 .8s linear infinite reverse;
+}
+
+.gen-label {
+  font-family: 'Playfair Display', serif; font-style: italic;
+  font-size: 20px; color: var(--ink-soft); opacity:.8;
+}
+.gen-sub {
+  font-size: 13px; color: var(--brown); letter-spacing: 2px;
+  text-transform: uppercase; opacity: .5;
+}
+
+/* ═══════════════ PREVIEW MODAL ═══════════════ */
+#preview-area {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 240px; margin: 12px 0 4px;
+  border: 1.5px solid rgba(139,111,94,.12);
+  border-radius: 14px; background: rgba(250,247,242,.6);
+  overflow: hidden;
+}
+#preview-area svg,
+#preview-area img {
+  max-width: 280px;
+  max-height: 320px;
+  display: block;
+}
+
+/* ═══════════════ CLICK POPUP ═══════════════ */
+#popup {
+  position: fixed; z-index: 200;
+  background: rgba(253,250,245,.97);
+  border-radius: 24px;
+  padding: 32px 36px 28px;
+  box-shadow: 0 20px 60px rgba(45,33,24,.2);
+  border: 1px solid rgba(139,111,94,.12);
+  width: 460px; max-width: 94vw;
+  transform: translateY(10px);
+  opacity: 0; pointer-events: none;
+  transition: all .3s ease;
+}
+#popup.show { opacity: 1; transform: translateY(0); pointer-events: all; }
+
+.popup-name {
+  font-family: 'Playfair Display', serif; font-style: italic;
+  font-size: 28px; color: var(--ink); margin-bottom: 5px;
+}
+.popup-rel {
+  font-size: 14px; color: var(--brown);
+  letter-spacing: 2.5px; text-transform: uppercase; opacity:.55;
+  margin-bottom: 20px;
+}
+.popup-input-row { display: flex; gap: 12px; align-items: center; }
+.popup-input {
+  flex: 1; padding: 14px 18px;
+  border: 1.5px solid rgba(139,111,94,.22); border-radius: 18px;
+  background: rgba(255,255,255,.6);
+  font-family: 'Crimson Text', serif; font-size: 18px;
+  color: var(--ink); outline: none;
+  transition: border-color .2s;
+}
+.popup-input:focus { border-color: rgba(139,111,94,.45); }
+.popup-send {
+  width: 48px; height: 48px; border-radius: 50%;
+  border: none; background: var(--brown); color: white;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: all .2s; flex-shrink: 0;
+}
+.popup-send:hover { background: var(--ink-soft); transform: scale(1.06); }
+.popup-close {
+  position: absolute; top: 16px; right: 18px;
+  width: 34px; height: 34px; border-radius: 50%;
+  border: none; background: rgba(139,111,94,.1); color: var(--brown);
+  font-size: 20px; cursor: pointer; display:flex; align-items:center; justify-content:center;
+  transition: background .2s;
+}
+.popup-close:hover { background: rgba(139,111,94,.22); }
+.popup-msgs { margin-bottom: 16px; display:flex; flex-direction:column; gap:8px; max-height:200px; overflow-y:auto; padding-right: 6px; }
+.popup-msg-out {
+  align-self: flex-end;
+  background: rgba(139,111,94,.1);
+  padding: 10px 16px; border-radius:16px 16px 4px 16px;
+  font-size: 17px; color: var(--ink); max-width:85%;
+  line-height: 1.5;
+}
+
+/* Delete btn inside popup */
+.popup-del {
+  margin-top: 16px; width: 100%; padding: 11px;
+  border: 1px solid rgba(196,121,90,.25); border-radius: 12px;
+  background: transparent; color: var(--terra); opacity:.65;
+  font-family: 'Crimson Text', serif; font-size: 15px;
+  cursor: pointer; transition: all .2s; letter-spacing:.5px;
+}
+.popup-del:hover { opacity:1; background: rgba(196,121,90,.07); }
+</style>
+</head>
+<body>
+
+<!-- ═══ LOADING ═══ -->
+<div id="screen-loading">
+  <div class="earth-wrap">
+    <div class="earth-glow"></div>
+    <svg class="earth-svg" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id="ocean" cx="38%" cy="38%" r="62%">
+          <stop offset="0%" stop-color="#cce9f4" stop-opacity=".92"/>
+          <stop offset="55%" stop-color="#7abcd4" stop-opacity=".88"/>
+          <stop offset="100%" stop-color="#5090b0" stop-opacity=".92"/>
+        </radialGradient>
+        <filter id="wc0">
+          <feTurbulence type="fractalNoise" baseFrequency="0.042" numOctaves="4" seed="7" result="n"/>
+          <feDisplacementMap in="SourceGraphic" in2="n" scale="4" xChannelSelector="R" yChannelSelector="G"/>
+        </filter>
+        <clipPath id="ec"><circle cx="100" cy="100" r="87"/></clipPath>
+      </defs>
+      <circle cx="100" cy="100" r="87" fill="url(#ocean)" filter="url(#wc0)"/>
+      <g clip-path="url(#ec)" filter="url(#wc0)">
+        <ellipse cx="58" cy="70" rx="22" ry="30" fill="#9aba98" opacity=".75" transform="rotate(-12 58 70)"/>
+        <ellipse cx="50" cy="90" rx="13" ry="17" fill="#adc8a5" opacity=".6" transform="rotate(-4 50 90)"/>
+        <ellipse cx="108" cy="66" rx="15" ry="21" fill="#c2b892" opacity=".72" transform="rotate(4 108 66)"/>
+        <ellipse cx="110" cy="104" rx="13" ry="27" fill="#b5a67e" opacity=".66" transform="rotate(2 110 104)"/>
+        <ellipse cx="144" cy="63" rx="28" ry="20" fill="#a4b68c" opacity=".7" transform="rotate(-7 144 63)"/>
+        <ellipse cx="150" cy="88" rx="18" ry="14" fill="#c2ac78" opacity=".55"/>
+        <ellipse cx="150" cy="130" rx="15" ry="11" fill="#c6a468" opacity=".65" transform="rotate(9 150 130)"/>
+        <ellipse cx="70" cy="122" rx="13" ry="23" fill="#9cb678" opacity=".66" transform="rotate(-4 70 122)"/>
+      </g>
+      <circle cx="100" cy="100" r="87" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="1"/>
+      <g clip-path="url(#ec)" opacity=".35">
+        <ellipse cx="72" cy="52" rx="26" ry="5.5" fill="white" opacity=".7" transform="rotate(-4 72 52)" filter="url(#wc0)"/>
+        <ellipse cx="130" cy="44" rx="18" ry="4.5" fill="white" opacity=".55" transform="rotate(-6 130 44)" filter="url(#wc0)"/>
+        <ellipse cx="88" cy="152" rx="22" ry="5" fill="white" opacity=".6" filter="url(#wc0)"/>
+      </g>
+    </svg>
+  </div>
+  <div class="load-label">entering your world</div>
+  <div class="load-dots"><span></span><span></span><span></span></div>
+</div>
+
+<!-- ═══ WORLD ═══ -->
+<div id="screen-world">
+  <div class="world-bg">
+    <div class="wash wash-tl"></div>
+    <div class="wash wash-br"></div>
+    <div class="wash wash-tr"></div>
+    <div class="horizon"></div>
+  </div>
+  <div class="welcome">
+    <h1>Welcome to my world</h1>
+    <p>a quiet place</p>
+  </div>
+  <div id="canvas"></div>
+  <button id="add-btn" title="Add someone">
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+      <line x1="10" y1="3" x2="10" y2="17" stroke="#8b6f5e" stroke-width="1.8" stroke-linecap="round"/>
+      <line x1="3" y1="10" x2="17" y2="10" stroke="#8b6f5e" stroke-width="1.8" stroke-linecap="round"/>
+    </svg>
+  </button>
+</div>
+
+<!-- ═══ GENERATING OVERLAY ═══ -->
+<div id="screen-gen">
+  <div class="brush-anim">
+    <div class="brush-circle"></div>
+    <div class="brush-inner"></div>
+  </div>
+  <div class="gen-label">Painting your figure…</div>
+  <div class="gen-sub">the brush is thinking</div>
+</div>
+
+<!-- ═══ ADD MODAL ═══ -->
+<div class="overlay" id="modal-add">
+  <div class="modal">
+    <h2>Add someone</h2>
+    <div class="field">
+      <label>Name</label>
+      <input type="text" id="inp-name" placeholder="their name…">
+    </div>
+    <div class="field">
+      <label>Type</label>
+      <div class="pills" id="type-pills">
+        <div class="pill active" data-type="human">Human</div>
+        <div class="pill" data-type="animal">Animal</div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Closeness</label>
+      <div class="pills" id="rel-pills">
+        <div class="pill" data-rel="close">Close</div>
+        <div class="pill active" data-rel="warm">Warm</div>
+        <div class="pill" data-rel="distant">Distant</div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Photo <span style="opacity:.45;font-size:10px">(required — used by AI)</span></label>
+      <div class="upload-zone" id="upload-zone">
+        <input type="file" id="inp-photo" accept="image/*">
+        <img id="photo-preview" class="preview" alt="">
+        <div class="hint" id="upload-hint">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none" style="margin:0 auto 8px;display:block;opacity:.35">
+            <path d="M14 6v12M9 11l5-5 5 5" stroke="#8b6f5e" stroke-width="1.6" stroke-linecap="round"/>
+            <rect x="4" y="20" width="20" height="2.5" rx="1.2" fill="rgba(139,111,94,.35)"/>
+          </svg>
+          tap to upload a photo<br>
+          <span style="opacity:.45;font-size:11px">AI will paint a watercolor version</span>
+        </div>
+      </div>
+    </div>
+    <div class="row-btns">
+      <button class="btn-ghost" id="btn-cancel">Cancel</button>
+      <button class="btn-main" id="btn-generate" disabled>Generate figure</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ PREVIEW MODAL ═══ -->
+<div class="overlay" id="modal-preview">
+  <div class="modal">
+    <h2>Your watercolor figure</h2>
+    <div id="preview-area"></div>
+    <p style="font-size:13px;color:var(--brown);opacity:.55;text-align:center;margin-top:8px">
+      Generated by AI — unique each time
+    </p>
+    <div class="row-btns" style="margin-top:22px">
+      <button class="btn-ghost" id="btn-regen">Repaint</button>
+      <button class="btn-main" id="btn-confirm">Add to my world ✦</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ CLICK POPUP ═══ -->
+<div id="popup">
+  <button class="popup-close" id="popup-close">×</button>
+  <div class="popup-name" id="popup-name">—</div>
+  <div class="popup-rel" id="popup-rel">—</div>
+  <div class="popup-msgs" id="popup-msgs"></div>
+  <div class="popup-input-row">
+    <input class="popup-input" id="popup-input" placeholder="say something…">
+    <button class="popup-send" id="popup-send">
+      <svg width="18" height="18" viewBox="0 0 14 14" fill="none">
+        <path d="M2 7h10M8 3l4 4-4 4" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+  </div>
+  <button class="popup-del" id="popup-del">remove from world</button>
+</div>
+
+<script>
+/* ════════════════════════════════════════
+   STATE & STORAGE
+════════════════════════════════════════ */
+const STORE_KEY = 'wcworld-v2';
+
+function loadPeople() {
+  try { return JSON.parse(localStorage.getItem(STORE_KEY)) || []; }
+  catch { return []; }
+}
+function savePeople(arr) {
+  localStorage.setItem(STORE_KEY, JSON.stringify(arr));
+}
+
+let people = loadPeople();
+let selectedRel = 'warm';
+let selectedSubject = 'human';
+let photoB64 = null;
+let photoType = null;
+let generatedAsset = null;
+let pendingName = null;
+let activePerson = null;
+
+/* ════════════════════════════════════════
+   LAYOUT
+════════════════════════════════════════ */
+const FIGURE_BASE_WIDTH = 120;
+const FIGURE_BASE_HEIGHT = 188;
+const FIGURE_LABEL_HEIGHT = 42;
+const LAYOUT_CENTER_MIN = 11;
+const LAYOUT_CENTER_MAX = 89;
+const LAYOUT_FOOT_LANES = [86, 83.5, 88.5, 81.2, 90, 79.8];
+
+function clamp(n, min, max) {
+  return Math.max(min, Math.min(max, n));
+}
+
+function round2(n) {
+  return Math.round(n * 100) / 100;
+}
+
+function hashString(str = '') {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+function jitterFromId(id, salt = 0) {
+  const h = hashString(`${id || 'anon'}:${salt}`);
+  return ((h % 1000) / 999) - 0.5;
+}
+
+function getFigureFootprint(person) {
+  const scale = getDisplayScale(person);
+  return {
+    scale,
+    widthPct: (FIGURE_BASE_WIDTH * scale / window.innerWidth) * 100,
+    heightPct: ((FIGURE_BASE_HEIGHT * scale + FIGURE_LABEL_HEIGHT) / window.innerHeight) * 100
+  };
+}
+
+function getAllowedOverlap(count) {
+  if (count <= 6) return 0;
+  if (count >= 18) return 0.5;
+  return ((count - 6) / 12) * 0.5;
+}
+
+function getOverlapRatio(a, b) {
+  const overlapW = Math.max(0, Math.min(a.x2, b.x2) - Math.max(a.x1, b.x1));
+  const overlapH = Math.max(0, Math.min(a.y2, b.y2) - Math.max(a.y1, b.y1));
+  if (!overlapW || !overlapH) return 0;
+
+  const overlapArea = overlapW * overlapH;
+  const smallerArea = Math.min(
+    (a.x2 - a.x1) * (a.y2 - a.y1),
+    (b.x2 - b.x1) * (b.y2 - b.y1)
+  );
+  return smallerArea > 0 ? overlapArea / smallerArea : 0;
+}
+
+function buildSlots(count) {
+  const centers = Math.max(10, count * 3);
+  const span = LAYOUT_CENTER_MAX - LAYOUT_CENTER_MIN;
+  const slots = [];
+
+  for (let i = 0; i < centers; i++) {
+    const t = centers === 1 ? 0.5 : i / (centers - 1);
+    const center = LAYOUT_CENTER_MIN + span * t;
+    LAYOUT_FOOT_LANES.forEach((footY, laneIndex) => {
+      slots.push({ center, footY, laneIndex, slotIndex: i });
+    });
+  }
+
+  return slots;
+}
+
+function layoutPeople(list) {
+  if (!list.length) return;
+
+  const slots = buildSlots(list.length);
+  const placed = [];
+  const allowedOverlap = getAllowedOverlap(list.length);
+  const centerStep = list.length === 1 ? 0 : (LAYOUT_CENTER_MAX - LAYOUT_CENTER_MIN) / (list.length - 1);
+
+  list.forEach((person, index) => {
+    const footprint = getFigureFootprint(person);
+    const idealCenter = list.length === 1 ? 50 : LAYOUT_CENTER_MIN + centerStep * index;
+    let best = null;
+
+    for (const slot of slots) {
+      const xJitter = jitterFromId(person.id, slot.slotIndex) * (list.length <= 6 ? 2.2 : 1.1);
+      const yJitter = jitterFromId(person.id, 100 + slot.laneIndex) * 1.2;
+      const center = clamp(slot.center + xJitter, footprint.widthPct / 2 + 2, 98 - footprint.widthPct / 2);
+      const footY = clamp(slot.footY + yJitter, 79.5, 90);
+      const left = clamp(center - footprint.widthPct / 2, 2, 98 - footprint.widthPct);
+      const top = footY - footprint.heightPct;
+      const box = { x1: left, y1: top, x2: left + footprint.widthPct, y2: top + footprint.heightPct };
+
+      let maxOverlap = 0;
+      let totalOverlap = 0;
+      for (const other of placed) {
+        const ratio = getOverlapRatio(box, other.box);
+        maxOverlap = Math.max(maxOverlap, ratio);
+        totalOverlap += ratio;
+      }
+
+      const blocked = maxOverlap > allowedOverlap + 0.02;
+      const score =
+        (blocked ? 1000 : 0) +
+        (Math.abs(center - idealCenter) * 1.2) +
+        (slot.laneIndex * (list.length <= 7 ? 6 : 2.2)) +
+        (totalOverlap * 280) +
+        (Math.max(0, maxOverlap - allowedOverlap) * 800);
+
+      if (!best || score < best.score) {
+        best = {
+          score,
+          box,
+          pos: { x: round2(left), y: round2(top) },
+          layer: Math.round(footY * 10)
+        };
+      }
+    }
+
+    person.pos = best.pos;
+    person.layer = best.layer;
+    placed.push(best);
+  });
+}
+
+/* ════════════════════════════════════════
+   RENDER FIGURES
+════════════════════════════════════════ */
+const REL_COLORS = { close:'#c4795a', warm:'#c9a05a', distant:'#8fa88a' };
+const REL_SCALE  = { close:1.02, warm:0.93, distant:0.82 };
+const SUBJECT_SCALE = { human: 1, animal: 0.5 };
+const FLOAT_ANIMS = ['float-a','float-b','drift'];
+
+function getDisplayScale(person) {
+  const relScale = REL_SCALE[person.relation] || 0.93;
+  const subjectScale = SUBJECT_SCALE[person.subjectType] || 1;
+  return relScale * subjectScale;
+}
+
+function renderAll() {
+  const canvas = document.getElementById('canvas');
+  layoutPeople(people);
+  // Remove existing figures
+  canvas.querySelectorAll('.fig-wrap').forEach(el => {
+    cancelAnimationFrame(el._raf);
+    el.remove();
+  });
+  people.forEach((p, i) => renderFigure(p, i));
+}
+
+function renderFigure(p, idx) {
+  const canvas = document.getElementById('canvas');
+  const pos = p.pos || { x: 50, y: 68 };
+
+  const scale = getDisplayScale(p);
+  const wrap = document.createElement('div');
+  wrap.className = 'fig-wrap';
+  wrap.dataset.id = p.id;
+  wrap.style.left = pos.x + '%';
+  wrap.style.top  = pos.y + '%';
+  wrap.style.zIndex = String(p.layer || Math.round((pos.y + scale * 10) * 10));
+
+  // Shadow
+  const shadow = document.createElement('div');
+  shadow.className = 'fig-shadow';
+  shadow.style.width  = (55 * scale) + 'px';
+  shadow.style.height = (14 * scale) + 'px';
+
+  // SVG container
+  const svgWrap = document.createElement('div');
+  svgWrap.className = 'fig-svg';
+  svgWrap.style.transform = `scale(${scale})`;
+  svgWrap.style.transformOrigin = 'bottom center';
+  if (p.imageDataUrl) {
+    const img = document.createElement('img');
+    img.src = p.imageDataUrl;
+    img.alt = p.name;
+    svgWrap.appendChild(img);
+  } else if (p.imageUrl) {
+    const img = document.createElement('img');
+    img.src = p.imageUrl;
+    img.alt = p.name;
+    svgWrap.appendChild(img);
+  } else {
+    svgWrap.innerHTML = p.svg || '';
+  }
+
+  // Label
+  const label = document.createElement('div');
+  label.className = 'fig-label';
+  label.textContent = p.name;
+
+  // Dot
+  const dot = document.createElement('div');
+  dot.className = 'fig-dot';
+  dot.style.background = REL_COLORS[p.relation] || '#b8957a';
+
+  wrap.appendChild(shadow);
+  wrap.appendChild(svgWrap);
+  wrap.appendChild(label);
+  wrap.appendChild(dot);
+
+  // Floating animation (random variant)
+  const floatAnim = FLOAT_ANIMS[idx % FLOAT_ANIMS.length];
+  const dur = 3.5 + Math.random() * 2.5;
+  const delay = Math.random() * -3;
+  wrap.style.animation = `${floatAnim} ${dur}s ${delay}s ease-in-out infinite`;
+
+  // Click handler
+  wrap.addEventListener('click', () => openPopup(p, wrap));
+
+  canvas.appendChild(wrap);
+
+  // Entrance
+  wrap.style.opacity = '0';
+  wrap.style.transition = 'opacity .9s ease';
+  setTimeout(() => { wrap.style.opacity = '1'; }, 60 + idx * 100);
+}
+
+/* ════════════════════════════════════════
+   IMAGE UTILS
+════════════════════════════════════════ */
+function resizeImage(file, maxPx = 500) {
+  return new Promise(resolve => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const targetW = 768;
+      const targetH = 1152;
+      const scale = Math.min((targetW * 0.78) / img.width, (targetH * 0.56) / img.height, 1);
+      const w = Math.max(1, Math.round(img.width * scale));
+      const h = Math.max(1, Math.round(img.height * scale));
+      const c = document.createElement('canvas');
+      c.width = targetW;
+      c.height = targetH;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, targetW, targetH);
+
+      const x = Math.round((targetW - w) / 2);
+      const y = Math.round(targetH * 0.1);
+      ctx.drawImage(img, x, y, w, h);
+      URL.revokeObjectURL(url);
+      c.toBlob(blob => {
+        const reader = new FileReader();
+        reader.onload = e => resolve({
+          b64: e.target.result.split(',')[1],
+          type: 'image/jpeg'
+        });
+        reader.readAsDataURL(blob);
+      }, 'image/jpeg', .88);
+    };
+    img.src = url;
+  });
+}
+
+function compressDataUrl(dataUrl, maxPx = 520, quality = 0.84) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(maxPx / img.width, maxPx / img.height, 1);
+      const w = Math.max(1, Math.round(img.width * scale));
+      const h = Math.max(1, Math.round(img.height * scale));
+      const c = document.createElement('canvas');
+      c.width = w;
+      c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      try {
+        resolve(c.toDataURL('image/webp', quality));
+      } catch {
+        resolve(c.toDataURL('image/png'));
+      }
+    };
+    img.onerror = () => reject(new Error('预览图片压缩失败'));
+    img.src = dataUrl;
+  });
+}
+
+async function fetchRemoteImageAsDataUrl(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`远程图片抓取失败: HTTP ${res.status}`);
+  const blob = await res.blob();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => resolve(e.target.result);
+    reader.onerror = () => reject(new Error('远程图片读取失败'));
+    reader.readAsDataURL(blob);
+  });
+}
+
+function removeWhiteBackground(dataUrl, threshold = 246) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = img.width;
+      c.height = img.height;
+      const ctx = c.getContext('2d', { willReadFrequently: true });
+      ctx.drawImage(img, 0, 0);
+
+      const imageData = ctx.getImageData(0, 0, c.width, c.height);
+      const data = imageData.data;
+      const w = c.width;
+      const h = c.height;
+      const visited = new Uint8Array(w * h);
+      const queue = new Uint32Array(w * h);
+      let head = 0;
+      let tail = 0;
+
+      function isNearWhiteAt(index) {
+        const a = data[index + 3];
+        if (a < 8) return false;
+        return data[index] >= threshold && data[index + 1] >= threshold && data[index + 2] >= threshold;
+      }
+
+      function push(x, y) {
+        if (x < 0 || y < 0 || x >= w || y >= h) return;
+        const p = y * w + x;
+        if (visited[p]) return;
+        const i = p * 4;
+        if (!isNearWhiteAt(i)) return;
+        visited[p] = 1;
+        queue[tail++] = p;
+      }
+
+      for (let x = 0; x < w; x++) {
+        push(x, 0);
+        push(x, h - 1);
+      }
+      for (let y = 1; y < h - 1; y++) {
+        push(0, y);
+        push(w - 1, y);
+      }
+
+      while (head < tail) {
+        const p = queue[head++];
+        const x = p % w;
+        const y = (p - x) / w;
+        push(x - 1, y);
+        push(x + 1, y);
+        push(x, y - 1);
+        push(x, y + 1);
+      }
+
+      for (let p = 0; p < visited.length; p++) {
+        if (!visited[p]) continue;
+        data[p * 4 + 3] = 0;
+      }
+
+      for (let y = 1; y < h - 1; y++) {
+        for (let x = 1; x < w - 1; x++) {
+          const p = y * w + x;
+          if (visited[p]) continue;
+          const i = p * 4;
+          const a = data[i + 3];
+          if (a < 12) continue;
+          const minRgb = Math.min(data[i], data[i + 1], data[i + 2]);
+          if (minRgb < threshold - 10) continue;
+
+          const neighbors = [p - 1, p + 1, p - w, p + w];
+          if (neighbors.some(n => visited[n])) {
+            data[i + 3] = Math.min(data[i + 3], 120);
+          }
+        }
+      }
+
+      ctx.putImageData(imageData, 0, 0);
+      try {
+        resolve(c.toDataURL('image/png'));
+      } catch (err) {
+        reject(err);
+      }
+    };
+    img.onerror = () => reject(new Error('去背景失败'));
+    img.src = dataUrl;
+  });
+}
+
+/* ════════════════════════════════════════
+   ADD MODAL
+════════════════════════════════════════ */
+document.getElementById('add-btn').addEventListener('click', () => {
+  openModal('modal-add');
+  setTimeout(() => document.getElementById('inp-name').focus(), 350);
+});
+
+document.getElementById('btn-cancel').addEventListener('click', () => {
+  closeModal('modal-add');
+  resetAddForm();
+});
+document.getElementById('modal-add').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-add')) {
+    closeModal('modal-add'); resetAddForm();
+  }
+});
+
+document.querySelectorAll('#rel-pills .pill').forEach(p => {
+  p.addEventListener('click', () => {
+    document.querySelectorAll('#rel-pills .pill').forEach(x => x.classList.remove('active'));
+    p.classList.add('active');
+    selectedRel = p.dataset.rel;
+  });
+});
+
+document.querySelectorAll('#type-pills .pill').forEach(p => {
+  p.addEventListener('click', () => {
+    document.querySelectorAll('#type-pills .pill').forEach(x => x.classList.remove('active'));
+    p.classList.add('active');
+    selectedSubject = p.dataset.type;
+  });
+});
+
+document.getElementById('inp-photo').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const { b64, type } = await resizeImage(file);
+  photoB64 = b64; photoType = type;
+  const preview = document.getElementById('photo-preview');
+  preview.src = 'data:' + type + ';base64,' + b64;
+  preview.style.display = 'block';
+  document.getElementById('upload-hint').style.display = 'none';
+  document.getElementById('btn-generate').disabled = false;
+});
+
+document.getElementById('btn-generate').addEventListener('click', () => {
+  const name = document.getElementById('inp-name').value.trim();
+  if (!name) {
+    document.getElementById('inp-name').classList.add('err');
+    setTimeout(() => document.getElementById('inp-name').classList.remove('err'), 900);
+    return;
+  }
+  if (!photoB64) return;
+  pendingName = name;
+  closeModal('modal-add');
+  generateFigure();
+});
+
+async function generateFigure() {
+  showGen(true);
+  try {
+    const res = await fetch('/api/generate-figure', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imageBase64: photoB64, mediaType: photoType })
+    });
+    const raw = await res.text();
+    let data = null;
+    try { data = raw ? JSON.parse(raw) : null; } catch {}
+    if (!res.ok) {
+      throw new Error(data?.error || raw || `HTTP ${res.status}`);
+    }
+    if (!data) {
+      throw new Error('API 返回的不是有效 JSON');
+    }
+    if (!res.ok || data.error) throw new Error(data.error || 'API error');
+    let imageDataUrl = data.imageDataUrl || null;
+    let imageUrl = data.imageUrl || null;
+    if (!imageDataUrl && imageUrl) {
+      try {
+        imageDataUrl = await fetchRemoteImageAsDataUrl(imageUrl);
+      } catch (err) {
+        console.warn(err);
+      }
+    }
+    if (imageDataUrl) {
+      try {
+        imageDataUrl = await removeWhiteBackground(imageDataUrl);
+      } catch (err) {
+        console.warn(err);
+      }
+    }
+
+    generatedAsset = {
+      type: data.imageDataUrl ? 'image' : 'svg',
+      imageDataUrl,
+      imageMimeType: data.imageMimeType || null,
+      imageUrl: imageDataUrl ? null : imageUrl,
+      svg: data.svg || null,
+      source: data.source || null,
+    };
+    showGen(false);
+    showPreview(generatedAsset);
+  } catch (err) {
+    showGen(false);
+    alert('生成失败: ' + err.message);
+  }
+}
+
+function showPreview(asset) {
+  const area = document.getElementById('preview-area');
+  area.innerHTML = '';
+  if (asset?.imageDataUrl) {
+    const img = document.createElement('img');
+    img.src = asset.imageDataUrl;
+    img.alt = 'Generated watercolor figure';
+    area.appendChild(img);
+  } else if (asset?.imageUrl) {
+    const img = document.createElement('img');
+    img.src = asset.imageUrl;
+    img.alt = 'Generated watercolor figure';
+    area.appendChild(img);
+  } else if (asset?.svg) {
+    area.innerHTML = asset.svg;
+  }
+  openModal('modal-preview');
+}
+
+document.getElementById('btn-regen').addEventListener('click', () => {
+  closeModal('modal-preview');
+  generateFigure();
+});
+
+document.getElementById('btn-confirm').addEventListener('click', async () => {
+  let imageDataUrl = generatedAsset?.imageDataUrl || null;
+  let imageUrl = generatedAsset?.imageUrl || null;
+  if (!imageDataUrl && imageUrl) {
+    try {
+      imageDataUrl = await fetchRemoteImageAsDataUrl(imageUrl);
+    } catch (err) {
+      console.warn(err);
+    }
+  }
+  if (imageDataUrl) {
+    try {
+      imageDataUrl = await compressDataUrl(imageDataUrl);
+    } catch (err) {
+      console.warn(err);
+    }
+  }
+  const person = {
+    id: Date.now().toString(),
+    name: pendingName,
+    relation: selectedRel,
+    subjectType: selectedSubject,
+    svg: generatedAsset?.svg || null,
+    imageDataUrl,
+    imageUrl: imageDataUrl ? null : imageUrl,
+    messages: []
+  };
+  people.push(person);
+  savePeople(people);
+  renderAll();
+  closeModal('modal-preview');
+  resetAddForm();
+});
+
+function resetAddForm() {
+  document.getElementById('inp-name').value = '';
+  document.getElementById('inp-photo').value = '';
+  document.getElementById('photo-preview').style.display = 'none';
+  document.getElementById('upload-hint').style.display = 'block';
+  document.getElementById('btn-generate').disabled = true;
+  photoB64 = null; photoType = null;
+  generatedAsset = null;
+  selectedRel = 'warm';
+  selectedSubject = 'human';
+  document.querySelectorAll('#rel-pills .pill').forEach(p =>
+    p.classList.toggle('active', p.dataset.rel === 'warm'));
+  document.querySelectorAll('#type-pills .pill').forEach(p =>
+    p.classList.toggle('active', p.dataset.type === 'human'));
+}
+
+/* ════════════════════════════════════════
+   POPUP (click interaction)
+════════════════════════════════════════ */
+function openPopup(person, figEl) {
+  activePerson = person;
+  document.getElementById('popup-name').textContent = person.name;
+  const relLabel = { close:'Close · ●●●', warm:'Warm · ●●○', distant:'Distant · ●○○' };
+  document.getElementById('popup-rel').textContent = relLabel[person.relation] || '';
+
+  // Render past messages
+  const msgs = document.getElementById('popup-msgs');
+  msgs.innerHTML = '';
+  (person.messages || []).forEach(m => {
+    const d = document.createElement('div');
+    d.className = 'popup-msg-out';
+    d.textContent = m;
+    msgs.appendChild(d);
+  });
+  msgs.scrollTop = msgs.scrollHeight;
+
+  // Position popup near figure (centered, accounting for larger popup)
+  const rect = figEl.getBoundingClientRect();
+  const popup = document.getElementById('popup');
+  const popW = 460;
+  popup.style.left = Math.max(12, Math.min(rect.left + rect.width / 2 - popW / 2, window.innerWidth - popW - 20)) + 'px';
+  popup.style.top  = Math.max(12, rect.top - 340) + 'px';
+  popup.classList.add('show');
+
+  // Wiggle figure
+  figEl.classList.remove('wiggling');
+  void figEl.offsetWidth;
+  figEl.classList.add('wiggling');
+  figEl.addEventListener('animationend', () => figEl.classList.remove('wiggling'), { once: true });
+  document.getElementById('popup-input').focus();
+}
+
+document.getElementById('popup-close').addEventListener('click', closePopup);
+function closePopup() {
+  document.getElementById('popup').classList.remove('show');
+  activePerson = null;
+}
+
+function sendMsg() {
+  const input = document.getElementById('popup-input');
+  const text = input.value.trim();
+  if (!text || !activePerson) return;
+
+  activePerson.messages = activePerson.messages || [];
+  activePerson.messages.push(text);
+  savePeople(people);
+
+  const d = document.createElement('div');
+  d.className = 'popup-msg-out';
+  d.textContent = text;
+  document.getElementById('popup-msgs').appendChild(d);
+  document.getElementById('popup-msgs').scrollTop = 9999;
+  input.value = '';
+
+  // Find figure and wiggle
+  const figEl = document.querySelector(`.fig-wrap[data-id="${activePerson.id}"]`);
+  if (figEl) {
+    figEl.classList.remove('wiggling');
+    void figEl.offsetWidth;
+    figEl.classList.add('wiggling');
+    figEl.addEventListener('animationend', () => figEl.classList.remove('wiggling'), { once: true });
+  }
+}
+
+document.getElementById('popup-send').addEventListener('click', sendMsg);
+document.getElementById('popup-input').addEventListener('keydown', e => { if (e.key === 'Enter') sendMsg(); });
+
+document.getElementById('popup-del').addEventListener('click', () => {
+  if (!activePerson) return;
+  if (!confirm(`Remove ${activePerson.name} from your world?`)) return;
+  people = people.filter(p => p.id !== activePerson.id);
+  savePeople(people);
+  closePopup();
+  renderAll();
+});
+
+/* ════════════════════════════════════════
+   MODAL HELPERS
+════════════════════════════════════════ */
+function openModal(id)  { document.getElementById(id).classList.add('show'); }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+function showGen(v) {
+  const el = document.getElementById('screen-gen');
+  el.classList.toggle('show', v);
+}
+
+/* ════════════════════════════════════════
+   BOOT
+════════════════════════════════════════ */
+setTimeout(() => {
+  document.getElementById('screen-loading').classList.add('out');
+  document.getElementById('screen-world').classList.add('visible');
+  // Restore saved people
+  if (people.length > 0) {
+    renderAll();
+  }
+}, 3400);
+
+window.addEventListener('resize', () => {
+  if (!people.length) return;
+  renderAll();
+});
+
+setTimeout(() => {
+  document.getElementById('screen-loading').style.display = 'none';
+}, 5000);
+</script>
+</body>
+</html>
